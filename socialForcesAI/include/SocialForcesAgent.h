@@ -59,6 +59,15 @@ public:
 	float computePenetration(const Util::Point & p, float radius) { return Util::computeCircleCirclePenetration2D( _position, _radius, p, radius); }
 	//@}
 
+	//Functions we have created for our implementation
+	Util::Vector SocialForcesAgent::pursueAndEvade(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	Util::Vector SocialForcesAgent::leaderFollower(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	Util::Vector SocialForcesAgent::wallFollower(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	Util::Vector SocialForcesAgent::leaderFollowerAdvanced(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	bool SocialForcesAgent::isAgentAtNewLocation(float newX, float newZ);
+
+
+
 	// bool collidesAtTimeWith(const Util::Point & p1, const Util::Vector & rightSide, float otherAgentRadius, float timeStamp, float footX, float footZ);
 	// void insertAgentNeighbor(const SteerLib::AgentInterface * agent, float &rangeSq) {throw Util::GenericException("clearGoals() not implemented yet for SocialForcesAgent");}
 	// bool compareDist(SteerLib::AgentInterface * a1, SteerLib::AgentInterface * a2 );

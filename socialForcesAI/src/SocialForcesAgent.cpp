@@ -26,6 +26,9 @@ using namespace SteerLib;
 
 // #define _DEBUG_ENTROPY 1
 
+//Global Varible for the position of the drone
+Util::Point dronePosition;
+
 SocialForcesAgent::SocialForcesAgent()
 {
 	_SocialForcesParams.sf_acceleration = sf_acceleration;
@@ -149,7 +152,9 @@ void SocialForcesAgent::reset(const SteerLib::AgentInitialConditions & initialCo
 	// iterate over the sequence of goals specified by the initial conditions.
 	for (unsigned int i=0; i<initialConditions.goals.size(); i++) {
 		if (initialConditions.goals[i].goalType == SteerLib::GOAL_TYPE_SEEK_STATIC_TARGET ||
-				initialConditions.goals[i].goalType == GOAL_TYPE_AXIS_ALIGNED_BOX_GOAL)
+				initialConditions.goals[i].goalType == GOAL_TYPE_AXIS_ALIGNED_BOX_GOAL ||
+				initialConditions.goals[i].goalType == GOAL_TYPE_SEEK_DYNAMIC_TARGET||
+				initialConditions.goals[i].goalType == GOAL_TYPE_FLEE_DYNAMIC_TARGET)
 		{
 			if (initialConditions.goals[i].targetIsRandom)
 			{
@@ -220,7 +225,7 @@ void SocialForcesAgent::reset(const SteerLib::AgentInitialConditions & initialCo
 
 void SocialForcesAgent::calcNextStep(float dt)
 {
-
+	//nope
 }
 
 std::pair<float, Util::Point> minimum_distance(Util::Point l1, Util::Point l2, Util::Point p)
@@ -574,23 +579,8 @@ Util::Vector SocialForcesAgent::calcWallRepulsionForce(float dt)
 				std::pair<float, Util::Point> min_stuff = minimum_distance(line.first, line.second, position());
 				// wall distance
 				wall_repulsion_force = wall_repulsion_force +
-					((
-						(
-							(
-									wall_normal
-							)
-							*
-							(
-								radius() +
-								_SocialForcesParams.sf_personal_space_threshold -
-								(
-									min_stuff.first
-								)
-							)
-						)
-						/
-						min_stuff.first
-					)* _SocialForcesParams.sf_body_force * dt);
+					((((wall_normal)*(radius() +_SocialForcesParams.sf_personal_space_threshold -(min_stuff.first)))
+						/min_stuff.first)* _SocialForcesParams.sf_body_force * dt);
 				// tangential force
 				// std::cout << "wall tangent " << rightSideInXZPlane(wall_normal) <<
 					// 	" dot is " << dot(forward(),  rightSideInXZPlane(wall_normal)) <<
@@ -762,7 +752,150 @@ void SocialForcesAgent::computeNeighbors()
 	}
 }*/
 
+//Function for pursue and evade
+Util::Vector SocialForcesAgent::pursueAndEvade(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection) {
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+	SteerLib::AgentInitialConditions agentIC;
 
+	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
+	{
+		if ((*neighbor)->isAgent()) {
+			if (goalInfo.goalType == GOAL_TYPE_SEEK_DYNAMIC_TARGET) {
+				goalDirection = normalize(dronePosition - position());
+			}
+			else if (goalInfo.goalType == GOAL_TYPE_FLEE_DYNAMIC_TARGET) {
+				goalDirection = normalize(position() - dronePosition);
+			}
+			else if (goalInfo.goalType == GOAL_TYPE_SEEK_STATIC_TARGET) {
+				dronePosition = position();
+				goalDirection = normalize(_currentLocalTarget - position());
+			}
+		}
+	}
+	return goalDirection;
+}
+
+//Function for the leader follower
+Util::Vector SocialForcesAgent::leaderFollower(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection) {
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+	SteerLib::AgentInitialConditions agentIC;
+		
+	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
+	{
+		if ((*neighbor)->isAgent()) {
+			if (goalInfo.goalType == GOAL_TYPE_SEEK_DYNAMIC_TARGET) {
+				goalDirection = normalize(dronePosition - position());
+			}
+			else if (goalInfo.goalType == GOAL_TYPE_SEEK_STATIC_TARGET) {
+				dronePosition = position();
+				goalDirection = normalize(_currentLocalTarget - position());
+			}
+		}
+	}
+		return goalDirection;
+}
+
+//Function for the wall follower
+Util::Vector SocialForcesAgent::wallFollower(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection) {
+	Util::Vector n = Util::Vector(1.3f, 0.0f, 1.1f);
+	Util::Vector pgoal = Util::Vector(0.0f, 0.0f, 0.0f);;
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, position().x - 5.0f, position().x + 5.0f, position().z - 4.0f, position().z + 4.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+	SteerLib::ObstacleInterface *wall;
+	if (_neighbors.size() == 0)
+	{
+		goalDirection = normalize(_currentLocalTarget - position());
+	}
+	else {
+		for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
+		{
+
+			if (!(*neighbor)->isAgent()) {
+				wall = dynamic_cast<SteerLib::ObstacleInterface *>(*neighbor);
+				if (normalize(cross(calcWallNormal(wall), cross(calcWallNormal(wall), n))) != pgoal)
+				{
+					goalDirection = normalize(cross(calcWallNormal(wall), cross(calcWallNormal(wall), n)));
+					pgoal = normalize(calcWallNormal(wall));
+					//continue;
+				}
+				else
+				{
+					goalDirection = -normalize(cross(calcWallNormal(wall), cross(calcWallNormal(wall), n)));
+					pgoal = normalize(calcWallNormal(wall));
+					//continue;
+
+				}
+
+				goalDirection = -goalDirection;
+
+			}
+			else
+			{
+
+			}
+		}
+	}
+
+	return goalDirection;
+}
+
+
+bool SocialForcesAgent::isAgentAtNewLocation(float newX, float newZ)
+{
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+
+	float spacing = _radius;
+
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, (newX)-spacing,
+		newX + spacing, newZ - spacing, newZ + spacing, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+
+	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
+	{
+		if ((*neighbor)->isAgent())
+		{
+			return true;
+
+		}
+	}
+	return false;
+}
+
+//function for the advanced leader follower
+Util::Vector SocialForcesAgent::leaderFollowerAdvanced(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection)
+{
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+	SteerLib::AgentInitialConditions agentIC;
+
+	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
+	{
+		if ((*neighbor)->isAgent()) {
+			SteerLib::AgentInterface *ai = dynamic_cast<AgentInterface*>(*neighbor);
+			agentIC = getAgentConditions(ai);
+			if (goalInfo.goalType == GOAL_TYPE_SEEK_DYNAMIC_TARGET) {
+
+				goalDirection = normalize(dronePosition - position());
+				float newX = (position().x + goalDirection.x);
+				float newZ = (position().z + goalDirection.z);
+				bool b = isAgentAtNewLocation(newX, newZ);
+				if (b == true)
+				{
+					goalDirection.zero();
+				}
+			}
+			else if (goalInfo.goalType == GOAL_TYPE_SEEK_STATIC_TARGET) {
+				dronePosition = position();
+				goalDirection = normalize(_currentLocalTarget - position());
+			}
+		}
+	}
+	return goalDirection;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////// Here is the main function
 void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
 {
 	// std::cout << "_SocialForcesParams.rvo_max_speed " << _SocialForcesParams._SocialForcesParams.rvo_max_speed << std::endl;
@@ -774,25 +907,28 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 
 	Util::AxisAlignedBox oldBounds(_position.x - _radius, _position.x + _radius, 0.0f, 0.0f, _position.z - _radius, _position.z + _radius);
 
+
 	SteerLib::AgentGoalInfo goalInfo = _goalQueue.front();
 	Util::Vector goalDirection;
-	// std::cout << "midtermpath empty: " << _midTermPath.empty() << std::endl;
+
+	//Calling the pursue and evade function here and setting it equal to the goal direction (This was used for assignment A3)
+	//If this line gets commented out, the agents will not move
+	//goalDirection = leaderFollower(goalInfo, goalDirection);
+	//goalDirection = pursueAndEvade(goalInfo, goalDirection);
+	//goalDirection = wallFollower(goalInfo, goalDirection);
+	//goalDirection = leaderFollowerAdvanced(goalInfo, goalDirection);
+
+	//Put the assignment A6 stuff here
+
 	if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) )
 	{
 		if (reachedCurrentWaypoint())
 		{
 			this->updateMidTermPath();
 		}
-
 		this->updateLocalTarget();
-
-		goalDirection = normalize(_currentLocalTarget - position());
-
 	}
-	else
-	{
-		goalDirection = normalize(goalInfo.targetLocation - position());
-	}
+
 	// _prefVelocity = goalDirection * PERFERED_SPEED;
 	Util::Vector prefForce = (((goalDirection * PERFERED_SPEED) - velocity()) / (_SocialForcesParams.sf_acceleration/dt)); //assumption here
 	prefForce = prefForce + velocity();
