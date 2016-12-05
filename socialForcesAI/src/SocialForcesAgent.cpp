@@ -19,6 +19,12 @@
 #undef max
 
 #define AGENT_MASS 1.0f
+#define COLLISION_COST  1000
+#define GRID_STEP  1
+#define OBSTACLE_CLEARANCE 1
+#define MIN(X,Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(X,Y) ((X) > (Y) ? (X) : (Y))
+#define DURATION 15
 
 using namespace Util;
 using namespace SocialForcesGlobals;
@@ -761,8 +767,222 @@ void SocialForcesAgent::computeNeighbors()
 		// std::cout << "Made it past segfault" << std::endl;
 	}
 }*/
+std::vector<AStarPlannerNode*> SocialForcesAgent::getSuccessors(AStarPlannerNode* currentNode, Util::Point goal) {
+	std::vector<AStarPlannerNode*> successors;
+
+	int size = 3;
+	double foo[3] = { -.01 ,0, .01 };
+	for (int a = 0; a < size; a++)
+	{
+		for (int b = 0; b < size; b++)
+		{
+			if (foo[a] == 0 && foo[b] == 0)
+			{
+				continue;
+			}
+			checkAddSuccessor(currentNode,
+				Util::Point(currentNode->point.x + foo[a], currentNode->point.y, currentNode->point.z + foo[b]),
+				successors, goal);
+		}
+	}
+
+	return successors;
+}
+
+bool SocialForcesAgent::canBeTraversed(int id)
+{
+	double traversal_cost = 0;
+	int current_id = id;
+	unsigned int x, z;
+	getSimulationEngine()->getSpatialDatabase()->getGridCoordinatesFromIndex(current_id, x, z);
+	int x_range_min, x_range_max, z_range_min, z_range_max;
+
+	x_range_min = MAX(x - OBSTACLE_CLEARANCE, 0);
+	x_range_max = MIN(x + OBSTACLE_CLEARANCE, getSimulationEngine()->getSpatialDatabase()->getNumCellsX());
+
+	z_range_min = MAX(z - OBSTACLE_CLEARANCE, 0);
+	z_range_max = MIN(z + OBSTACLE_CLEARANCE, getSimulationEngine()->getSpatialDatabase()->getNumCellsZ());
 
 
+	for (int i = x_range_min; i <= x_range_max; i += GRID_STEP)
+	{
+		for (int j = z_range_min; j <= z_range_max; j += GRID_STEP)
+		{
+			int index = getSimulationEngine()->getSpatialDatabase()->getCellIndexFromGridCoords(i, j);
+			traversal_cost += getSimulationEngine()->getSpatialDatabase()->getTraversalCost(index);
+
+		}
+	}
+
+	if (traversal_cost > COLLISION_COST)
+		return false;
+	return true;
+}
+//returns true if grid coord given by point can be traversed
+bool SocialForcesAgent::canBeTraversed1(Util::Point point) {
+	return canBeTraversed(getSimulationEngine()->getSpatialDatabase()->getCellIndexFromLocation(point));
+}
+bool SocialForcesAgent::inSet(AStarPlannerNode* currentNode, std::vector<AStarPlannerNode*> set) {
+	for (int i = 0; i < set.size(); i++) {
+		if (currentNode->point == set[i]->point) {
+			return true;
+		}
+	}
+	return false;
+}
+void SocialForcesAgent::storePath(std::vector<AStarPlannerNode*> &path, std::vector<Util::Point>& agent_path, Util::Point goal)
+{
+	for (int i = path.size() - 1; i > 0; i--) {
+		//std::cout << "list size = " << closedSet.size() << ". loop " << i << "\n";
+		std::cout << "pushing point " << path[i]->point << "\n";
+		agent_path.push_back(path[i]->point);
+	}
+	agent_path.push_back(goal);
+}
+bool SocialForcesAgent::checkAddSuccessor(AStarPlannerNode* parentNode, Util::Point location, std::vector<AStarPlannerNode*> &successors, Util::Point goal) {
+	if (!canBeTraversed1(location)) {
+		std::cout << "The location: " << location << " is blocked\n";
+		return false;
+	}
+
+	//std::cout << "The location: " << location << " can be traversed and is added to the list of successors\n";
+	AStarPlannerNode* successorNode = new AStarPlannerNode(location, parentNode->g + distanceBetween(parentNode->point, location), double(0), parentNode);
+	successors.push_back(successorNode);
+	return true;
+}
+int SocialForcesAgent::getLowestFIndex(std::vector<AStarPlannerNode*> set) {
+	int returnIndex;
+	double bestFValue = DBL_MAX;
+
+	for (int i = 0; i < set.size(); i++) {
+		if (set[i]->f <= bestFValue) {
+			bestFValue = set[i]->f;
+			returnIndex = i;
+		}
+	}
+	return returnIndex;
+}
+bool SocialForcesAgent::weightedAStar(std::vector<Util::Point>& agent_path, Util::Point start,
+	Util::Point goal, bool append_to_path)
+{
+	double inflationFactor = 1;
+	std::cout << "\nWEIGHTED A*\n";
+
+	std::vector<AStarPlannerNode*> closedSet, openSet, path;
+	openSet.push_back(new AStarPlannerNode(start, double(0), distanceBetween(start, goal), NULL));
+
+	while (openSet.size() != 0) {
+		//current node is node with lowest f-score value (computed and assigned here)
+		int index = getLowestFIndex(openSet);
+		AStarPlannerNode* current = openSet[index];
+
+		//The current node is the goal. Assign closed set to agent_path
+		//std::cout << "\n//////////The current position is " << current->point << "//////////\n";
+		if (current->point == goal) {
+			std::cout << "Target Found!!\n";
+			//path.push_back(current);
+			AStarPlannerNode* traceBack = current;
+			while (traceBack != NULL) {
+				path.push_back(traceBack);
+				traceBack = traceBack->parent;
+			}
+
+
+			storePath(path, agent_path, goal);
+			return true;
+		}
+
+		//remove current node from the openset
+		openSet.erase(openSet.begin() + index);
+		//add current node to closedset
+		closedSet.push_back(current);
+
+
+		std::vector<AStarPlannerNode*> neighborNodes = getSuccessors(current, goal);
+
+		for (int i = 0; i < neighborNodes.size(); i++) {
+
+			//if neighbor in closed set then continue
+			if (inSet(neighborNodes[i], closedSet)) {
+				continue;
+			}
+
+			//get the tentative g score
+			double tentative_g = current->g + distanceBetween(current->point, neighborNodes[i]->point);
+
+			//std::cout << "\nTentative g = " << tentative_g << " and neighborNodes[i]->g = " << neighborNodes[i]->g << "\n";
+			if (tentative_g <= neighborNodes[i]->g) {
+				neighborNodes[i]->g = tentative_g;
+				neighborNodes[i]->f = neighborNodes[i]->g + inflationFactor*distanceBetween(neighborNodes[i]->point, goal);
+				if (!inSet(neighborNodes[i], openSet)) {
+					openSet.push_back(neighborNodes[i]);
+				}
+			}
+
+		}
+
+	}
+
+	return false;
+}
+int last_waypoint = 0;
+int pathComputed = 1;
+double steps;
+
+void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
+{
+	Util::AutomaticFunctionProfiler profileThisFunction(&SocialForcesGlobals::gPhaseProfilers->aiProfiler);
+	if (!enabled())
+	{
+		return;
+	}
+	if (pathComputed>0)
+	{
+		std::cout << "Computing path ";
+		pathComputed--;
+
+		std::vector<Util::Point> agent_path;
+		Util::Point global_goal = _goalQueue.front().targetLocation;
+		weightedAStar(agent_path, position(), global_goal,true);
+
+		while (!_goalQueue.empty())
+			_goalQueue.pop();
+
+		for (int i = 0; i < agent_path.size(); ++i)
+		{
+			SteerLib::AgentGoalInfo goal_path_pt;
+			goal_path_pt.targetLocation = agent_path[i];
+			std::cout << agent_path[i];
+			_goalQueue.push(goal_path_pt);
+		}
+		SteerLib::AgentGoalInfo goal_path_pt;
+		goal_path_pt.targetLocation = global_goal;
+		_goalQueue.push(goal_path_pt);
+
+
+		if (!canBeTraversed1(Util::Point(-9.993350982666016, 0, -0.5596204400062561))) 
+		{
+			std::cout << "why is this blocked\n";
+			
+		}
+
+		steps = (DURATION / (double)_goalQueue.size());
+	}
+	
+	if (timeStamp> last_waypoint*steps)
+	{
+		if (!_goalQueue.empty())
+		{
+			_position = _goalQueue.front().targetLocation;
+			std::cout << "Waypoint: " << _position;
+			_goalQueue.pop();
+			last_waypoint++;
+			
+		}
+		
+	}
+}
+/*
 void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
 {
 	// std::cout << "_SocialForcesParams.rvo_max_speed " << _SocialForcesParams._SocialForcesParams.rvo_max_speed << std::endl;
@@ -771,6 +991,7 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	{
 		return;
 	}
+	std::cout << position()<<"\n";
 
 	Util::AxisAlignedBox oldBounds(_position.x - _radius, _position.x + _radius, 0.0f, 0.0f, _position.z - _radius, _position.z + _radius);
 
@@ -830,24 +1051,23 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 #endif
 	_position = position() + (velocity() * dt);
 	// A grid database update should always be done right after the new position of the agent is calculated
-	/*
-	 * Or when the agent is removed for example its true location will not reflect its location in the grid database.
-	 * Not only that but this error will appear random depending on how well the agent lines up with the grid database
-	 * boundaries when removed.
-	 */
+	
+	// Or when the agent is removed for example its true location will not reflect its location in the grid database.
+	 // Not only that but this error will appear random depending on how well the agent lines up with the grid database
+	 //boundaries when removed.
+	 //
 	// std::cout << "Updating agent" << this->id() << " at " << this->position() << std::endl;
 	Util::AxisAlignedBox newBounds(_position.x - _radius, _position.x + _radius, 0.0f, 0.0f, _position.z - _radius, _position.z + _radius);
 	getSimulationEngine()->getSpatialDatabase()->updateObject( this, oldBounds, newBounds);
 
-/*
-	if ( ( !_waypoints.empty() ) && (_waypoints.front() - position()).length() < radius()*WAYPOINT_THRESHOLD_MULTIPLIER)
-	{
-		_waypoints.erase(_waypoints.begin());
-	}
-	*/
-	/*
-	 * Now do the conversion from SocialForcesAgent into the SteerSuite coordinates
-	 */
+
+	//if ( ( !_waypoints.empty() ) && (_waypoints.front() - position()).length() < radius()*WAYPOINT_THRESHOLD_MULTIPLIER)
+	//{
+		//_waypoints.erase(_waypoints.begin());
+	//}
+	
+	// Now do the conversion from SocialForcesAgent into the SteerSuite coordinates
+	 
 	// _velocity.y = 0.0f;
 
 	if ((goalInfo.targetLocation - position()).length() < radius()*GOAL_THRESHOLD_MULTIPLIER ||
@@ -882,6 +1102,9 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	// _position = _position + (_velocity * dt);
 
 }
+*/
+
+
 
 
 void SocialForcesAgent::draw()
