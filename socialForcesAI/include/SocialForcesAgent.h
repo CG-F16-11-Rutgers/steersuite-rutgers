@@ -28,12 +28,52 @@
 // #define DRAW_HISTORIES 1
 // #define DRAW_COLLISIONS 1
 
+class STEERLIB_API AStarPlannerNode {
+public:
+	double f;
+	double g;
+	double rhs;
+	std::tuple<double, double> key;
+	Util::Point point;
+	AStarPlannerNode* parent;
+	AStarPlannerNode(Util::Point _point, double _g, double _f, AStarPlannerNode* _parent)
+	{
+		f = _f;
+		point = _point;
+		g = _g;
+		parent = _parent;
+		rhs = 0;
+	}
+	bool operator<(AStarPlannerNode other) const
+	{
+		return this->f < other.f;
+	}
+	bool operator>(AStarPlannerNode other) const
+	{
+		return this->f > other.f;
+	}
+	bool operator==(AStarPlannerNode other) const
+	{
+		return ((this->point.x == other.point.x) && (this->point.z == other.point.z));
+	}
 
+};
 class SocialForcesAgent : public SteerLib::AgentInterface
 {
 public:
 	SocialForcesAgent();
 	~SocialForcesAgent();
+	
+	std::vector<AStarPlannerNode*> SocialForcesAgent::getSuccessors(AStarPlannerNode* currentNode, Util::Point goal);
+	bool SocialForcesAgent::canBeTraversed(int id);
+	
+	//returns true if grid coord given by point can be traversed
+	bool canBeTraversed1(Util::Point point);
+	void storePath(std::vector<AStarPlannerNode*> &path, std::vector<Util::Point>& agent_path, Util::Point goal);
+	bool checkAddSuccessor(AStarPlannerNode* parentNode, Util::Point location, std::vector<AStarPlannerNode*> &successors, Util::Point goal);
+	bool weightedAStar(std::vector<Util::Point>& agent_path, Util::Point start, Util::Point goal, bool append_to_path);
+	bool inSet(AStarPlannerNode* currentNode, std::vector<AStarPlannerNode*> set);
+	int getLowestFIndex(std::vector<AStarPlannerNode*> set);
 	void reset(const SteerLib::AgentInitialConditions & initialConditions, SteerLib::EngineInterface * engineInfo);
 	void updateAI(float timeStamp, float dt, unsigned int frameNumber);
 	void disable();
