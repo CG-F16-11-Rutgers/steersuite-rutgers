@@ -923,7 +923,7 @@ int moveOverCount = 0;
 Util::Vector SocialForcesAgent::wallSqueeze(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving) {
 	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
 	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
-	int setCount = 500; //Set how long we want this agent to wait
+	int setCount = 300; //Set how long we want this agent to wait
 	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
 	{
 		if ((*neighbor)->isAgent()) {
@@ -931,11 +931,8 @@ Util::Vector SocialForcesAgent::wallSqueeze(SteerLib::AgentGoalInfo goalInfo, Ut
 				if (wsCount1 <= setCount) {
 					wsCount1++;
 					goalDirection = goalDirection;
-					
 				}
 				else {
-					moving = true;
-					std::cout << "Moving now\n";
 					goalDirection = normalize(_currentLocalTarget - position());
 				}
 			}
@@ -943,7 +940,7 @@ Util::Vector SocialForcesAgent::wallSqueeze(SteerLib::AgentGoalInfo goalInfo, Ut
 				goalDirection = normalize(_currentLocalTarget - position());
 			}
 			else if (goalInfo.goalType == GOAL_TYPE_FLEE_DYNAMIC_TARGET) {
-				if (wsCount2 <= 100) {
+				if (wsCount2 <= 80) {
 					moving = false;
 					wsCount2++;
 				}
@@ -999,9 +996,9 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	}
 	else {
 		// 
-		//if (moving) {
+		if (moving) {
 			goalDirection = normalize(goalInfo.targetLocation - position());
-		//}
+		}
 	}
 
 	// _prefVelocity = goalDirection * PERFERED_SPEED;
