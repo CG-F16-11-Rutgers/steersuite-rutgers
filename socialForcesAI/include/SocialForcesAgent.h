@@ -60,10 +60,12 @@ public:
 	//@}
 
 	//Functions we have created for our implementation
-	Util::Vector SocialForcesAgent::pursueAndEvade(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
-	Util::Vector SocialForcesAgent::leaderFollower(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
-	Util::Vector SocialForcesAgent::wallFollower(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
-	Util::Vector SocialForcesAgent::leaderFollowerAdvanced(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	Util::Vector pursueAndEvade(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	Util::Vector leaderFollower(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	Util::Vector wallFollower(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	Util::Vector leaderFollowerAdvanced(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	Util::Vector crowdCrossing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
+	Util::Vector wallSqueeze(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
 	bool SocialForcesAgent::isAgentAtNewLocation(float newX, float newZ);
 
 

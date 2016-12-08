@@ -894,6 +894,69 @@ Util::Vector SocialForcesAgent::leaderFollowerAdvanced(SteerLib::AgentGoalInfo g
 	return goalDirection;
 }
 
+/*Come back to this
+Util::Vector SocialForcesAgent::crowdCrossing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection) {
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+	
+	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
+	{
+		if ((*neighbor)->isAgent()) {
+			if (goalInfo.goalType == GOAL_TYPE_FLEE_DYNAMIC_TARGET) {
+				goalDirection = normalize(position() - dronePosition);
+			}
+			else if (goalInfo.goalType == GOAL_TYPE_SEEK_STATIC_TARGET) {
+				dronePosition = position();
+				goalDirection = normalize(_currentLocalTarget - position());
+			}
+		}
+	}
+	
+	return goalDirection;
+}
+*/
+
+//For the wall-squeeze.xml file
+int wsCount1 = 0;
+int wsCount2 = 0;
+int moveOverCount = 0;
+Util::Vector SocialForcesAgent::wallSqueeze(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving) {
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+	int setCount = 500; //Set how long we want this agent to wait
+	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
+	{
+		if ((*neighbor)->isAgent()) {
+			if (goalInfo.goalType == GOAL_TYPE_SEEK_DYNAMIC_TARGET) {
+				if (wsCount1 <= setCount) {
+					wsCount1++;
+					goalDirection = goalDirection;
+					
+				}
+				else {
+					moving = true;
+					std::cout << "Moving now\n";
+					goalDirection = normalize(_currentLocalTarget - position());
+				}
+			}
+			else if (goalInfo.goalType == GOAL_TYPE_SEEK_STATIC_TARGET) {
+				goalDirection = normalize(_currentLocalTarget - position());
+			}
+			else if (goalInfo.goalType == GOAL_TYPE_FLEE_DYNAMIC_TARGET) {
+				if (wsCount2 <= 100) {
+					moving = false;
+					wsCount2++;
+				}
+				else {
+					goalDirection = normalize(_currentLocalTarget - position());
+					moving = true;
+				}
+			}
+		}
+	}
+
+	return goalDirection;
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////// Here is the main function
 void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
@@ -911,6 +974,8 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	SteerLib::AgentGoalInfo goalInfo = _goalQueue.front();
 	Util::Vector goalDirection;
 
+	bool moving = true;
+
 	//Calling the pursue and evade function here and setting it equal to the goal direction (This was used for assignment A3)
 	//If this line gets commented out, the agents will not move
 	//goalDirection = leaderFollower(goalInfo, goalDirection);
@@ -919,7 +984,10 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	//goalDirection = leaderFollowerAdvanced(goalInfo, goalDirection);
 
 	//Put the assignment A6 stuff here
+	//goalDirection = crowdCrossing(goalInfo, goalDirection);
+	goalDirection = wallSqueeze(goalInfo, goalDirection, moving);
 
+	//Comment out the assignment of goal direction here when assigning it before this if statement
 	if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) )
 	{
 		if (reachedCurrentWaypoint())
@@ -927,6 +995,13 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 			this->updateMidTermPath();
 		}
 		this->updateLocalTarget();
+		//goalDirection = normalize(_currentLocalTarget - position());
+	}
+	else {
+		// 
+		//if (moving) {
+			goalDirection = normalize(goalInfo.targetLocation - position());
+		//}
 	}
 
 	// _prefVelocity = goalDirection * PERFERED_SPEED;
