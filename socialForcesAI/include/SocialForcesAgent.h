@@ -66,6 +66,8 @@ public:
 	Util::Vector leaderFollowerAdvanced(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
 	Util::Vector crowdCrossing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
 	Util::Vector wallSqueeze(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
+	Util::Vector doubleSqueeze(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
+	Util::Vector doorwayTwoWay(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
 	bool SocialForcesAgent::isAgentAtNewLocation(float newX, float newZ);
 
 

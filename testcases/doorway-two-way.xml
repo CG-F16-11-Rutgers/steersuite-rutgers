@@ -81,10 +81,10 @@
     <zmax>5</zmax>
   </obstacle>
 
-  <agent>
+<!--   <agent>
     <name>A</name>
     <initialConditions>
-      <radius>0.5</radius>
+      <radius>0.4</radius>
       <position> <x>-10</x> <y>0</y> <z>1</z> </position>
       <direction> <x>1</x> <y>0</y> <z>0</z> </direction>
       <speed>0</speed>
@@ -97,7 +97,7 @@
       </seekStaticTarget>
     </goalSequence>
 
-  </agent>
+  </agent> -->
 
   <agent>
     <name>B</name>

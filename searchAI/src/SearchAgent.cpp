@@ -120,11 +120,16 @@ void SearchAgent::computePlan()
 
 }
 
-
+//compute plan must be called here
+bool called = false;
 void SearchAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
 {
 	Util::AutomaticFunctionProfiler profileThisFunction( &SearchAIGlobals::gPhaseProfilers->aiProfiler );
 
+	if (!called) {
+		computePlan();
+		called = true;
+	}
 	
 	double steps = (DURATION/(double)__path.size());
 	if(timeStamp*dt > last_waypoint*steps)
@@ -132,7 +137,7 @@ void SearchAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
 		if(!_goalQueue.empty())
 		{
 			__position = _goalQueue.front().targetLocation;
-			std::cout<<"Waypoint: "<< __position;
+			//std::cout<<"Waypoint: "<< __position;
 			_goalQueue.pop();
 			last_waypoint++;
 		}
