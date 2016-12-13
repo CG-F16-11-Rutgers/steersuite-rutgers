@@ -985,22 +985,49 @@ Util::Vector SocialForcesAgent::doubleSqueeze(SteerLib::AgentGoalInfo goalInfo, 
 }
 
 //For doorway-two-way.xml file
+int ds = 0;
 Util::Vector SocialForcesAgent::doorwayTwoWay(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving) {
 	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
 	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
-	int setCounter = 0;
+	int setCounter = 150;
+
 	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
 	{
 		if ((*neighbor)->isAgent()) {
 			if (goalInfo.goalType == GOAL_TYPE_SEEK_DYNAMIC_TARGET) {
+				//goalDirection = normalize(goalInfo.targetLocation - position());
 
 			}
 			else if (goalInfo.goalType == GOAL_TYPE_SEEK_STATIC_TARGET) {
+				//std::cout << goalInfo.targetLocation << "\n";
+				if (goalInfo.targetLocation.x > 0)
+				{
 
+					goalDirection = (goalInfo.targetLocation - position());
+					goalDirection.x -= 10;
+					goalDirection.z -= 10;
+
+				}
+				else
+				{
+					if (ds < setCounter)
+					{
+						goalDirection = goalDirection;
+						//std::cout << ds<<"\n";
+						ds++;
+
+					}
+					else
+					{
+						goalDirection = (goalInfo.targetLocation - position());
+						goalDirection.x -= 10;
+						goalDirection.z -= 10;
+					}
+
+				}
 			}
 		}
 	}
-
 
 	return goalDirection;
 }
@@ -1031,9 +1058,11 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	//goalDirection = leaderFollowerAdvanced(goalInfo, goalDirection);
 
 	//Put the assignment A6 stuff here
+	//For hallway two way we run it several times to optimize like assignment A6
 	//goalDirection = crowdCrossing(goalInfo, goalDirection);
 	//goalDirection = wallSqueeze(goalInfo, goalDirection, moving);
 	//goalDirection = doubleSqueeze(goalInfo, goalDirection, moving);
+	//goalDirection = doorwayTwoWay(goalInfo, goalDirection, moving);
 
 	//Comment out the assignment of goal direction here when assigning it before this if statement
 	if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) )
@@ -1043,7 +1072,7 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 			this->updateMidTermPath();
 		}
 		this->updateLocalTarget();
-		goalDirection = normalize(_currentLocalTarget - position());
+		//goalDirection = normalize(_currentLocalTarget - position());
 	}
 	else {
 		// 

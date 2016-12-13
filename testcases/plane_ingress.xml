@@ -1,4 +1,4 @@
-<!--
+<!-- <!-- <!-- <!-- <!-- <!--
   Copyright (c) 2009-2015  Glen Berseth, Mubbasir Kapadia, Shawn Singh, Petros Faloutsos, Glenn Reinman
   See license.txt for complete license.
 --><!--
@@ -558,7 +558,7 @@
 
   </agent>
 
-
+<!-- 
    <agent>
     <name>10</name>
     <initialConditions>
@@ -653,9 +653,9 @@
      
     </goalSequence>
 
-  </agent>
+  </agent> -->
 
-
+<!-- 
    <agent>
     <name>20</name>
     <initialConditions>
@@ -2498,7 +2498,7 @@
 
   </agent>
 
-
+ -->
 
 
 
@@ -2509,3 +2509,4 @@
 
   
 </SteerBenchTestCase>
+ --> --> --> --> -->
