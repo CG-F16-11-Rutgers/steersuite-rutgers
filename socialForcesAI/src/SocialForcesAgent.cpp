@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) 2009-2015 Glen Berseth, Mubbasir Kapadia, Shawn Singh, Petros Faloutsos, Glenn Reinman
 // See license.txt for complete license.
 //
@@ -894,27 +894,6 @@ Util::Vector SocialForcesAgent::leaderFollowerAdvanced(SteerLib::AgentGoalInfo g
 	return goalDirection;
 }
 
-//Come back to this
-Util::Vector SocialForcesAgent::crowdCrossing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving) {
-	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
-	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
-	
-	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
-	{
-		if ((*neighbor)->isAgent()) {
-			if (goalInfo.goalType == GOAL_TYPE_FLEE_DYNAMIC_TARGET) {
-				goalDirection = normalize(position() - dronePosition);
-			}
-			else if (goalInfo.goalType == GOAL_TYPE_SEEK_STATIC_TARGET) {
-				dronePosition = position();
-				goalDirection = normalize(_currentLocalTarget - position());
-			}
-		}
-	}
-	
-	return goalDirection;
-}
-
 
 //For the wall-squeeze.xml file
 int wsCount1 = 0;
@@ -1050,6 +1029,26 @@ bool agentInRange(int startIndex, int range, SteerLib::AgentInitialConditions in
 	}
 	return inRange;
 }
+//For office-complex.xml file
+Util::Vector SocialForcesAgent::officeComplex(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving)
+{
+	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
+	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
+
+	for (std::set<SteerLib::SpatialDatabaseItemPtr>::iterator neighbor = _neighbors.begin(); neighbor != _neighbors.end(); neighbor++)
+	{
+		if ((*neighbor)->isAgent()) {
+			goalDirection = (_currentLocalTarget - position());
+			if (position().z < 0)
+			{
+				goalDirection.z = abs(goalDirection.z)*-1;
+			}
+
+		}
+	}
+	return goalDirection;
+}
+
 
 //For plane_ingress.xml file
 int pistartIndex = 0;
@@ -1097,6 +1096,86 @@ Util::Vector SocialForcesAgent::planeEgress(SteerLib::AgentGoalInfo goalInfo, Ut
 	return goalDirection;
 }
 
+//For bottleneck-squeeze.xml file
+int deltaR = 1;
+int rangeX = 120;
+int rangeZ = 5;
+int delay = 70000;
+int currentTime = delay;
+Util::Vector SocialForcesAgent::bottleneckSqueeze(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving)
+{
+	int xMin = goalInfo.targetLocation.x - rangeX;
+	int xMax = goalInfo.targetLocation.x + rangeX;
+
+	int zMin = goalInfo.targetLocation.z - rangeZ;
+	int zMax = goalInfo.targetLocation.z + rangeZ;
+
+	if (position().x >= xMin && position().x <= xMax && position().z >= zMin && position().z <= zMax)
+	{
+		moving = true;
+		goalDirection = normalize(_currentLocalTarget - position());
+	}
+	else
+	{
+		moving = false;
+		goalDirection = goalDirection;
+	}
+
+	currentTime--;
+	if (currentTime < 0)
+	{
+		rangeX = rangeX + deltaR;
+		rangeZ = rangeZ + deltaR;
+		currentTime = delay;
+	}
+
+	return goalDirection;
+}
+
+//For crowd-crossing.xml file
+int timeLimit = 111000;
+bool timeToStartMoving = false;
+Util::Vector SocialForcesAgent::crowdCrossing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving) {
+
+	//small agent
+	if (id() != 0)
+	{
+		//std::cout << goalInfo.targetLocation;
+
+		if (position().x >= -10)
+		{
+			moving = true;
+			goalDirection = normalize(_currentLocalTarget - position());
+		}
+		else if (timeToStartMoving == false)
+		{
+			moving = false;
+			goalDirection = goalDirection;
+		}
+		else
+		{
+			moving = true;
+			goalDirection = normalize(_currentLocalTarget - position());
+		}
+
+	}
+	else
+	{
+
+		moving = true;
+		goalDirection = (_currentLocalTarget - position());
+	}
+
+	timeLimit--;
+	if (timeLimit < 0)
+	{
+		timeToStartMoving = true;
+	}
+
+	return goalDirection;
+}
+
+
 //////////////////////////////////////////////////////////////////////////////////////////// Here is the main function
 void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
 {
@@ -1123,14 +1202,17 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	//goalDirection = wallFollower(goalInfo, goalDirection);
 	//goalDirection = leaderFollowerAdvanced(goalInfo, goalDirection);
 
-	//Put the assignment A6 stuff here (Uncomment one of the lines to run)
+	/*Assignment A6 stuff here (Uncomment one of the lines to run)*/
+
 	//For hallway two way we run it several times to optimize like assignment A6
 	//goalDirection = crowdCrossing(goalInfo, goalDirection, moving);
 	//goalDirection = wallSqueeze(goalInfo, goalDirection, moving);
 	//goalDirection = doubleSqueeze(goalInfo, goalDirection, moving);
 	//goalDirection = doorwayTwoWay(goalInfo, goalDirection, moving);
+	//goalDirection = officeComplex(goalInfo, goalDirection, moving);
 	//goalDirection = planeIngress(goalInfo, goalDirection, initialCond, moving);
 	//goalDirection = planeEgress(goalInfo, goalDirection, initialCond, moving);
+	//goalDirection = bottleneckSqueeze(goalInfo, goalDirection, moving);
 
 	//Comment out the assignment of goal direction here when assigning it before this if statement
 	if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) )
@@ -1140,7 +1222,7 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 			this->updateMidTermPath();
 		}
 		this->updateLocalTarget();
-		goalDirection = normalize(_currentLocalTarget - position());
+		//goalDirection = normalize(_currentLocalTarget - position());
 	}
 	else {
 		// 

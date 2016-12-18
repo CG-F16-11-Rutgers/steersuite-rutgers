@@ -66,9 +66,11 @@ public:
 	Util::Vector leaderFollowerAdvanced(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection);
 	//These are the functions that we have created for A6
 	Util::Vector crowdCrossing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
+	Util::Vector officeComplex(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
 	Util::Vector wallSqueeze(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
 	Util::Vector doubleSqueeze(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
 	Util::Vector doorwayTwoWay(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
+	Util::Vector bottleneckSqueeze(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving);
 	Util::Vector planeIngress(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, SteerLib::AgentInitialConditions initialCond, bool &moving);
 	Util::Vector planeEgress(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, SteerLib::AgentInitialConditions initialCond, bool &moving);
 	bool SocialForcesAgent::isAgentAtNewLocation(float newX, float newZ);
