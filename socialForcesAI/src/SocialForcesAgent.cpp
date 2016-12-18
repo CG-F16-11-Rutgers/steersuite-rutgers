@@ -895,7 +895,7 @@ Util::Vector SocialForcesAgent::leaderFollowerAdvanced(SteerLib::AgentGoalInfo g
 }
 
 //Come back to this
-Util::Vector SocialForcesAgent::crowdCrossing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection) {
+Util::Vector SocialForcesAgent::crowdCrossing(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, bool &moving) {
 	std::set<SteerLib::SpatialDatabaseItemPtr> _neighbors;
 	getSimulationEngine()->getSpatialDatabase()->getItemsInRange(_neighbors, -100.0f, 100.0f, -100.0f, 100.0f, dynamic_cast<SteerLib::SpatialDatabaseItemPtr>(this));
 	
@@ -1032,6 +1032,71 @@ Util::Vector SocialForcesAgent::doorwayTwoWay(SteerLib::AgentGoalInfo goalInfo, 
 	return goalDirection;
 }
 
+//Function made to refer to a range of agents using the name
+bool agentInRange(int startIndex, int range, SteerLib::AgentInitialConditions initialCond) {
+	bool inRange = true;
+	for (int i = startIndex; i < startIndex + range; i++) {
+		std::string name = "agent" + std::to_string(i); //concatenate agent + number
+		if (initialCond.name.compare(name) != 0) {
+			inRange = false;
+		}
+		else {
+			//std::cout << name << std::endl;
+			//std::cout << initialCond.name << std::endl;
+			//std::cout << std::endl;
+			inRange = true;
+			break;
+		}
+	}
+	return inRange;
+}
+
+//For plane_ingress.xml file
+int pistartIndex = 0;
+int picounter = 0;
+int pirange = 5;
+Util::Vector SocialForcesAgent::planeIngress(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, SteerLib::AgentInitialConditions initialCond, bool &moving) {
+	int limit = 500;
+	if (agentInRange(pistartIndex, pirange, initialCond)) {
+		moving = true;
+		goalDirection = normalize(_currentLocalTarget - position());
+	}
+	else {
+		moving = false;
+		//goalDirection = goalDirection;
+		picounter++;
+	}
+
+	if (picounter >= limit) {
+		picounter = 0;
+		pirange += 5;
+	}
+	return goalDirection;
+}
+
+//For plane_egress.xml file
+int perange = 5;
+int pecounter = 0;
+int pestartIndex = 0;
+Util::Vector SocialForcesAgent::planeEgress(SteerLib::AgentGoalInfo goalInfo, Util::Vector goalDirection, SteerLib::AgentInitialConditions initialCond, bool &moving) {
+	int limit = 4000;
+	if (agentInRange(pestartIndex, perange, initialCond)) {
+		moving = true;
+		goalDirection = normalize(_currentLocalTarget - position());
+	}
+	else {
+		moving = false;
+		//goalDirection = goalDirection;
+		pecounter++;
+	}
+
+	if (pecounter >= limit) {
+		pecounter = 0;
+		perange += 5;
+	}
+	return goalDirection;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////// Here is the main function
 void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNumber)
 {
@@ -1046,6 +1111,7 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 
 
 	SteerLib::AgentGoalInfo goalInfo = _goalQueue.front();
+	SteerLib::AgentInitialConditions initialCond = this->getAgentConditions(this);
 	Util::Vector goalDirection;
 
 	bool moving = true;
@@ -1057,12 +1123,14 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 	//goalDirection = wallFollower(goalInfo, goalDirection);
 	//goalDirection = leaderFollowerAdvanced(goalInfo, goalDirection);
 
-	//Put the assignment A6 stuff here
+	//Put the assignment A6 stuff here (Uncomment one of the lines to run)
 	//For hallway two way we run it several times to optimize like assignment A6
-	//goalDirection = crowdCrossing(goalInfo, goalDirection);
+	//goalDirection = crowdCrossing(goalInfo, goalDirection, moving);
 	//goalDirection = wallSqueeze(goalInfo, goalDirection, moving);
 	//goalDirection = doubleSqueeze(goalInfo, goalDirection, moving);
 	//goalDirection = doorwayTwoWay(goalInfo, goalDirection, moving);
+	//goalDirection = planeIngress(goalInfo, goalDirection, initialCond, moving);
+	//goalDirection = planeEgress(goalInfo, goalDirection, initialCond, moving);
 
 	//Comment out the assignment of goal direction here when assigning it before this if statement
 	if ( ! _midTermPath.empty() && (!this->hasLineOfSightTo(goalInfo.targetLocation)) )
@@ -1072,7 +1140,7 @@ void SocialForcesAgent::updateAI(float timeStamp, float dt, unsigned int frameNu
 			this->updateMidTermPath();
 		}
 		this->updateLocalTarget();
-		//goalDirection = normalize(_currentLocalTarget - position());
+		goalDirection = normalize(_currentLocalTarget - position());
 	}
 	else {
 		// 
